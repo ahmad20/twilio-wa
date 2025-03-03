@@ -68,21 +68,16 @@ def set_public_edit_permissions(spreadsheet_id):
         fileId=spreadsheet_id,
         body=permission
     ).execute()
-    print(f"✅ Spreadsheet is now public and editable: https://docs.google.com/spreadsheets/d/{spreadsheet_id}")
+    print(f"✅ Spreadsheet is now public and editable: https://docs.google.com/spreadsheets/d/{spreadsheet_id}") 
 
-# Main execution
-if __name__ == "__main__":
+def insert_data(message:str):
 
-    pesan = "Ahmad Fauzi, KSM:1, KUR:2, CC:3"
     # parsing pesan
-    pesan = pesan.split(", ")
+    pesan = message.split("\n")
     nama = pesan[0]
     ksm = pesan[1].split(":")[1]
     kur = pesan[2].split(":")[1]
     cc = pesan[3].split(":")[1]
-
-    template = "Nama: {}, KSM: {}, KUR: {}, CC: {}"
-    print(template.format(nama, ksm, kur, cc))
 
     # Step 1: Create a new Google Sheet
     sheet_name = "My Test Sheet"
@@ -101,4 +96,3 @@ if __name__ == "__main__":
 
     # Step 5: Read data back
     read_from_google_sheet(spreadsheet_id)
-
