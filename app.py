@@ -2,11 +2,14 @@ import os
 import json
 import datetime
 import pandas as pd
+from flask import Flask, request, jsonify
 from googleapiclient.discovery import build
 from google.oauth2.service_account import Credentials
 
+app = Flask(__name__)
+
 # Load Google Sheets credentials
-SERVICE_ACCOUNT_FILE = "fabled-decker-343201-300066032aff.json"
+SERVICE_ACCOUNT_FILE = "fabled-decker-343201-911e36839265.json"
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
 
 creds = Credentials.from_service_account_file(SERVICE_ACCOUNT_FILE, scopes=SCOPES)
@@ -21,7 +24,6 @@ def create_google_sheet(sheet_name="My Generated Sheet"):
     sheet = service.spreadsheets().create(body=spreadsheet, fields="spreadsheetId").execute()
     spreadsheet_id = sheet["spreadsheetId"]
 
-    print(f"✅ New spreadsheet created: https://docs.google.com/spreadsheets/d/{spreadsheet_id}")
     return spreadsheet_id
 
 # Function to write data to Google Sheets
@@ -40,8 +42,6 @@ def write_to_google_sheet(spreadsheet_id, data, sheet_name="Sheet1"):
         body=body
     ).execute()
 
-    print(f"✅ Data successfully written to {sheet_name}")
-
 # Function to read data from Google Sheets
 def read_from_google_sheet(spreadsheet_id, sheet_name="Sheet1"):
     sheet_range = f"{sheet_name}!A1:Z100"
@@ -54,51 +54,32 @@ def read_from_google_sheet(spreadsheet_id, sheet_name="Sheet1"):
     values = result.get("values", [])
 
     if not values:
-        print("⚠️ No data found.")
+        return "No data found."
     else:
         df = pd.DataFrame(values)
-        print(f"✅ Data from {sheet_name}:\n", df)
+        return df.to_dict(orient='records')
 
-def set_public_edit_permissions(spreadsheet_id):
-    permission = {
-        "type": "anyone",
-        "role": "writer"
-    }
-    drive_service.permissions().create(
-        fileId=spreadsheet_id,
-        body=permission
-    ).execute()
-    print(f"✅ Spreadsheet is now public and editable: https://docs.google.com/spreadsheets/d/{spreadsheet_id}")
-
-# Main execution
-if __name__ == "__main__":
-
-    pesan = "Ahmad Fauzi, KSM:1, KUR:2, CC:3"
-    # parsing pesan
-    pesan = pesan.split(", ")
-    nama = pesan[0]
-    ksm = pesan[1].split(":")[1]
-    kur = pesan[2].split(":")[1]
-    cc = pesan[3].split(":")[1]
-
-    template = "Nama: {}, KSM: {}, KUR: {}, CC: {}"
-    print(template.format(nama, ksm, kur, cc))
-
-    # Step 1: Create a new Google Sheet
-    sheet_name = "My Test Sheet"
-
+@app.route('/create', methods=['POST'])
+def create():
+    data = request.json
+    sheet_name = data.get('sheet_name', 'My Test Sheet')
     spreadsheet_id = create_google_sheet(sheet_name)
+    return jsonify({'message': f'Spreadsheet created with ID: {spreadsheet_id}'})
 
-    # Step 2: Make it public & editable
-    set_public_edit_permissions(spreadsheet_id)
+@app.route('/write', methods=['POST'])
+def write():
+    data = request.json
+    spreadsheet_id = data.get('spreadsheet_id')
+    data_to_write = data.get('data')
+    write_to_google_sheet(spreadsheet_id, data_to_write)
+    return jsonify({'message': 'Data written successfully'})
 
-    # Step 4: Write sample data
-    sample_data = [
-        ["Timestamp", "Nama", "KSM", "KUR", "CC"],
-        [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), nama, ksm, kur, cc],
-    ]
-    write_to_google_sheet(spreadsheet_id, sample_data)
+@app.route('/read', methods=['GET'])
+def read():
+    data = request.args
+    spreadsheet_id = data.get('spreadsheet_id')
+    result = read_from_google_sheet(spreadsheet_id)
+    return jsonify(result)
 
-    # Step 5: Read data back
-    read_from_google_sheet(spreadsheet_id)
-
+if __name__ == "__main__":
+    app.run(debug=True, port=8080)  # Run on port 8080
